@@ -29,7 +29,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
         address private owner;
         uint256 public prob;
-        uint256 public num_rand; // Cada 5 min sale un numero aleatorio, si es igual o menor a probabilidad la bomba explota y todos pierden un 50%
+        uint256 public num_rand; 
         uint256 private tiempo;
         uint256 public apr;
         bool public game; // Indica si la bomba esta activa
