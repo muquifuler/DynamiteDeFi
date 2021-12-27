@@ -117,7 +117,7 @@ pragma solidity >=0.7.0 <0.9.0;
             require(game == false);
             tiempo=block.timestamp-90; // sale con 90 seg para que haya un 1% de apr
             game = true;
-            dynamite();
+            //dynamite();
         }
 
         function aumentoApr() private returns(uint256){ // 5 Dias en segundos = 432000 / 90 = 4800% apr, o 1 seg /9 
