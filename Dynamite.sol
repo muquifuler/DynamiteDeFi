@@ -17,7 +17,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
         struct user{
             uint256 cantidad;
-            uint256 beneficio;
+            uint256 profit;
             uint256 time;
         }
 
@@ -28,23 +28,15 @@ pragma solidity >=0.7.0 <0.9.0;
 
         address private owner;
         uint256 private prob;
-        uint256 private num_rand; 
-        uint256 private tiempo;
-        uint256 private apr;
+        uint256 private tiempo; //256 porque almacena block.timestamp
+        uint256 private apr=100;
         bool private game;
-        mapping(address => user) private users;
+        mapping(address => user) public users;
 
         constructor() payable{
+            require(address(this).balance >= 100000000);
             owner = msg.sender;
             game = false;
-        }
-
-        function actualizar() public{ // funcion para pruebas
-            if(game == true){
-                dynamite();
-            }else{
-                nuevaBomba();
-            }
         }
 
         /* User functions */
@@ -53,15 +45,16 @@ pragma solidity >=0.7.0 <0.9.0;
 
             require(game == true);
             require(msg.sender.balance >= msg.value);
+            
             users[msg.sender].cantidad += msg.value;
             
             if(users[msg.sender].time == 0){
                 users[msg.sender].time = block.timestamp;
-                users[msg.sender].beneficio = 0;
+                users[msg.sender].profit = 0;
 
             }else{
-                users[msg.sender].beneficio = makeBeneficio();
-                users[msg.sender].time = block.timestamp;
+                users[msg.sender].time = block.timestamp-users[msg.sender].time;
+                users[msg.sender].profit = makeBeneficio();
             }
         }
 
@@ -69,10 +62,10 @@ pragma solidity >=0.7.0 <0.9.0;
 
             makeBeneficio();
             require(users[msg.sender].cantidad != 0);
-            require(users[msg.sender].beneficio != 0);
+            require(users[msg.sender].profit != 0);
 
-            _address.transfer(users[msg.sender].beneficio);
-            users[msg.sender].beneficio = 0;
+            _address.transfer(users[msg.sender].profit);
+            users[msg.sender].profit = 0;
         }
 
         function unstake(address payable _address) external{
@@ -80,69 +73,67 @@ pragma solidity >=0.7.0 <0.9.0;
             makeBeneficio();
             require(users[msg.sender].cantidad != 0);
 
-            _address.transfer(users[msg.sender].beneficio + users[msg.sender].cantidad);
-            users[msg.sender].beneficio = 0;
+            _address.transfer(users[msg.sender].profit + users[msg.sender].cantidad);
+            users[msg.sender].profit = 0;
             users[msg.sender].cantidad = 0;
             users[msg.sender].time = 0;
+
+
         }
 
         /* Dynamite functions */
 
-        function dynamite() private{
+        function dynamite() external{
 
-            require(game==true);
-
-            makeBeneficio();
-            aumentoApr();
             aumentoProb();
-            getRandomnum();
+            aumentoApr();
+            makeBeneficio();
 
-            if(getRandomnum()<=aumentoProb()){
+            if(makeRandomnum()<=aumentoProb()){
                 explosion();
             }
         
         }
 
-        function explosion() private{
+        function explosion() private isOwner{
             require(game == true);
-            users[msg.sender].beneficio /= 2;
+            users[msg.sender].profit /= 2;
             users[msg.sender].cantidad /= 2;
             prob=0;
             tiempo=90; 
-            apr=0;
+            apr=100;
             game = false;
         }
 
-        function nuevaBomba() public isOwner{ // Debe ser external, public para pruebas desde actualizar
+        function nuevaBomba() external isOwner{ 
+            require(address(this).balance >= 100000000); // 100000000000000000 = 0.1BNB
             require(game == false);
             tiempo=block.timestamp-90; // sale con 90 seg para que haya un 1% de apr
             game = true;
-            //dynamite();
         }
 
         function aumentoApr() private returns(uint256){ // 5 Dias en segundos = 432000 / 90 = 4800% apr, o 1 seg /9 
-            apr = (makeTiempoDeBomba()/90)+30;
+            apr = (makeTiempoDeBomba()/90);
             return apr;
         }
 
         function aumentoProb() private returns(uint256){ 
-            prob = makeTiempoDeBomba()/8600; // Si tiempo = 432000 habra un 50% (432000 = 5 dias)
+            prob = makeTiempoDeBomba()/110; // Si tiempo = 432000 habra un 50% (432000 = 5 dias)8600
             return prob;
         }
 
-        /* Others */
+        /* Utilities */
 
         function makeBeneficio() private returns(uint256){
-            users[msg.sender].beneficio = (((users[msg.sender].cantidad/100)*apr)/525600)*(block.timestamp-users[msg.sender].time);
-            return users[msg.sender].beneficio;
+            users[msg.sender].profit = (((users[msg.sender].cantidad/100)*apr)/525600)*(block.timestamp-users[msg.sender].time);
+            return users[msg.sender].profit;
         }
 
-        function getRandomnum() private returns(uint256){
-            num_rand = uint(keccak256(abi.encodePacked(block.difficulty, msg.sender, address(this), block.timestamp, block.gaslimit, block.number, block.basefee, block.coinbase)))%100;
-            return num_rand;
+        function makeRandomnum() private view returns(uint256){
+            return uint(keccak256(abi.encodePacked(block.difficulty, msg.sender, address(this), block.timestamp, block.gaslimit, block.number, block.coinbase)))%100;
         }
 
-        function makeTiempoDeBomba() public view returns(uint256){ // Debe ser public porque interesa llamarla desde la web y desde el contrato
+        function makeTiempoDeBomba() private view returns(uint256){
             require(game == true);
             return block.timestamp-tiempo;
         }
@@ -156,17 +147,11 @@ pragma solidity >=0.7.0 <0.9.0;
         }
 
         function getMiBeneficioBomb() external view returns(uint256){
-            return users[msg.sender].beneficio;
-        }
-
-        function getMiTime() external view returns(uint256){
-            if(users[msg.sender].time != 0){
-                return block.timestamp-users[msg.sender].time;
-            }else{
-                return users[msg.sender].time;
-            }
+            return users[msg.sender].profit;
         }
         
+        
+
             //Bomb
 
         function getProb() external view returns(uint256){
@@ -178,11 +163,7 @@ pragma solidity >=0.7.0 <0.9.0;
         }
 
         function getBombTime() external view returns(uint256){
-            return tiempo;
-        }
-
-        function getBalanceTotal() external view returns(uint256){
-            return address(this).balance;
+            return makeTiempoDeBomba();
         }
 
         function getGame() external view returns(bool){
