@@ -4,7 +4,7 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-contract NFT_Public_Private is ERC721
+contract ERC721_Public_Private is ERC721
 {
     uint256 private token_count;
     
